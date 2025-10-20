@@ -1,0 +1,108 @@
+[project]
+name = "speaches"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+# https://packaging.python.org/en/latest/specifications/version-specifiers/#id5
+dependencies = [
+    "ctranslate2>=4.5.0",
+    "fastapi>=0.115.6",
+    "faster-whisper>=1.1.1",
+    "huggingface-hub[hf-transfer]>=0.33.4",
+    "kokoro-onnx[gpu]>=0.4.5,<0.5.0",
+    "numpy>=2.3.1",
+    "pydantic-settings>=2.10.1",
+    "pydantic>=2.11.7",
+    "python-multipart>=0.0.10",
+    "sounddevice>=0.5.2",
+    "soundfile>=0.13.1",
+    "uvicorn>=0.35.0",
+    "openai[realtime]>=1.109.1",
+    "aiostream>=0.7.0",
+    "cachetools>=6.1.0",
+    "httpx-ws>=0.7.2",
+    "aiortc>=1.13.0",
+    "httpx>=0.28.1",
+    "onnx-asr>=0.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "basedpyright>=1.30.1",
+    "ruff>=0.12.3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# https://docs.astral.sh/ruff/configuration/
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "FIX",
+    "TD", # disable todo warnings
+    "ERA",  # allow commented out code
+    "ANN003", # missing kwargs
+    "B006",
+    "B008",
+    "COM812", # trailing comma
+    "D10",  # disabled required docstrings
+    "D401",
+    "EM102",
+    "FBT001",
+    "FBT002",
+    "PLR0913",
+    "PLR2004", # magic
+    "RET504",
+    "RET505",
+    "RET508",
+    "S101", # allow assert
+    "S104",
+    "S603", # subprocess untrusted input
+    "SIM102",
+    "T201", # print
+    "TRY003",
+    "TRY300",
+    "TRY301",
+    "W505",
+    "ISC001", # recommended to disable for formatting
+    "INP001",
+    "PT018",
+    "G004", # logging f string
+    "E501", # line-too-long
+    "PLC0415"
+]
+
+[tool.ruff.lint.isort]
+force-sort-within-sections = true
+
+# https://docs.astral.sh/ruff/settings/#per-file-ignores
+[tool.ruff.lint.per-file-ignores]
+"src/speaches/types/**.py" = ["PYI051"]
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+pythonVersion = "3.12"
+pythonPlatform = "Linux"
+# https://github.com/DetachHead/basedpyright?tab=readme-ov-file#pre-commit-hook
+venvPath = "."
+venv = ".venv"
+
+[tool.uv]
+constraint-dependencies = ["llvmlite>=0.40.0"]
+# TODO: create an issue on https://github.com/thewh1teagle/kokoro-onnx regarding this
+override-dependencies = ["onnxruntime-gpu>=1.22.0 ; platform_machine == 'x86_64'", "onnxruntime>=1.22.0 ; platform_machine != 'x86_64'"]
