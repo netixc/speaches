@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 import logging
 import os
+from typing import TYPE_CHECKING
 import uuid
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 from fastapi import (
     FastAPI,
@@ -17,7 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from speaches.dependencies import ApiKeyDependency, get_config
+from speaches.dependencies import ApiKeyDependency, get_config, get_executor_registry
 from speaches.logger import setup_logger
 from speaches.routers.chat import (
     router as chat_router,
@@ -63,6 +68,33 @@ TAGS_METADATA = [
     },
 ]
 
+DEFAULT_MODELS = [
+    "speaches-ai/Kokoro-82M-v1.0-ONNX",
+    "Systran/faster-whisper-large-v3",
+]
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    logger = logging.getLogger(__name__)
+    logger.info("Downloading default models on startup...")
+    executor_registry = get_executor_registry()
+    for model_id in DEFAULT_MODELS:
+        for executor in executor_registry.all_executors():
+            if model_id in [model.id for model in executor.model_registry.list_remote_models()]:
+                try:
+                    was_downloaded = executor.model_registry.download_model_files_if_not_exist(model_id)
+                    if was_downloaded:
+                        logger.info(f"Downloaded default model: {model_id}")
+                    else:
+                        logger.info(f"Default model already exists: {model_id}")
+                    break
+                except Exception:
+                    logger.exception(f"Failed to download default model: {model_id}")
+    logger.info("Startup complete")
+    yield
+    logger.info("Shutting down...")
+
 
 def create_app() -> FastAPI:
     config = get_config()  # HACK
@@ -77,6 +109,7 @@ def create_app() -> FastAPI:
         version="0.8.3",  # TODO: update this on release
         license_info={"name": "MIT License", "identifier": "MIT"},
         openapi_tags=TAGS_METADATA,
+        lifespan=lifespan,
     )
 
     # Register global exception handler for APIProxyError

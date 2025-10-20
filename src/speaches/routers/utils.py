@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -8,6 +9,7 @@ if TYPE_CHECKING:
     import huggingface_hub
 
     from speaches.executors.shared.executor import Executor
+    from speaches.executors.shared.registry import ExecutorRegistry
 
 from fastapi import HTTPException
 from huggingface_hub.utils._cache_manager import _scan_cached_repo
@@ -18,14 +20,28 @@ from speaches.hf_utils import (
     get_model_repo_path,
 )
 
+logger = logging.getLogger(__name__)
 
-def get_model_card_data_or_raise(model_id: str) -> huggingface_hub.ModelCardData:
+
+def get_model_card_data_or_raise(
+    model_id: str, executor_registry: ExecutorRegistry | None = None
+) -> huggingface_hub.ModelCardData:
     model_repo_path = get_model_repo_path(model_id)
     if model_repo_path is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Model '{model_id}' is not installed locally. You can download the model using `POST /v1/models`",
-        )
+        if executor_registry is not None:
+            logger.info(f"Model '{model_id}' not found locally, attempting to download...")
+            for executor in executor_registry.all_executors():
+                if model_id in [model.id for model in executor.model_registry.list_remote_models()]:
+                    logger.info(f"Downloading model '{model_id}'...")
+                    executor.model_registry.download_model_files_if_not_exist(model_id)
+                    model_repo_path = get_model_repo_path(model_id)
+                    if model_repo_path is not None:
+                        break
+        if model_repo_path is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Model '{model_id}' is not installed locally. You can download the model using `POST /v1/models`",
+            )
     cached_repo_info = _scan_cached_repo(model_repo_path)
     model_card_data = get_model_card_data_from_cached_repo_info(cached_repo_info)
     if model_card_data is None:

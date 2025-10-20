@@ -56,7 +56,7 @@ def load_model_route(executor_registry: ExecutorRegistryDependency, model_id: Mo
                 },
             )
 
-    model_card_data = get_model_card_data_or_raise(model_id)
+    model_card_data = get_model_card_data_or_raise(model_id, executor_registry)
 
     for executor in executor_registry.all_executors():
         if executor.can_handle_model(model_id, model_card_data):

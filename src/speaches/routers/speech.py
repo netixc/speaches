@@ -51,11 +51,11 @@ class CreateSpeechRequestBody(BaseModel):
 # https://platform.openai.com/docs/api-reference/audio/createSpeech
 # NOTE: `response_model=None` because `Response | StreamingResponse` are not serializable by Pydantic.
 @router.post("/v1/audio/speech", response_model=None)
-async def synthesize(  # noqa: C901
+async def synthesize(
     executor_registry: ExecutorRegistryDependency,
     body: CreateSpeechRequestBody,
 ) -> Response | StreamingResponse:
-    model_card_data = get_model_card_data_or_raise(body.model)
+    model_card_data = get_model_card_data_or_raise(body.model, executor_registry)
 
     body.input = strip_emojis(body.input)
     body.input = strip_markdown_emphasis(body.input)
