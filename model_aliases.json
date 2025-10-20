@@ -3,5 +3,5 @@
     "tts-1-hd": "speaches-ai/Kokoro-82M-v1.0-ONNX",
     "kokoro": "speaches-ai/Kokoro-82M-v1.0-ONNX",
     "whisper-1": "Systran/faster-whisper-large-v3",
-    "whisper": "Systran/faster-whisper-large-v3",
+    "whisper": "Systran/faster-whisper-large-v3"
 }
