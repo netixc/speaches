@@ -46,7 +46,6 @@ class KokoroModelVoice(BaseModel):
     def id(self) -> str:
         return self.name
 
-
 VOICES = [
     # American English
     KokoroModelVoice(name="af_heart", language="en-us", gender="female"),

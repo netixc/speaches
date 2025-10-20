@@ -70,6 +70,10 @@ def create_completion_params(
 def conversation_item_to_chat_message(  # noqa: PLR0911
     item: ConversationItem,
 ) -> ChatCompletionMessageParam | None:
+    """Convert a single conversation item to a chat message.
+
+    NOTE: function_call items are NOT handled here - they're grouped in items_to_chat_messages.
+    """
     match item.type:
         case "message":
             content_list = item.content
@@ -94,20 +98,8 @@ def conversation_item_to_chat_message(  # noqa: PLR0911
                         return None
                     return ChatCompletionUserMessageParam(role="user", content=content.transcript)
         case "function_call":
-            assert item.call_id and item.name and item.arguments and item.status == "completed", item
-            return ChatCompletionAssistantMessageParam(
-                role="assistant",
-                tool_calls=[
-                    ChatCompletionMessageToolCallParam(
-                        id=item.call_id,
-                        type="function",
-                        function=Function(
-                            name=item.name,
-                            arguments=item.arguments,
-                        ),
-                    )
-                ],
-            )
+            # function_call items are handled in items_to_chat_messages to support grouping
+            return None
         case "function_call_output":
             assert item.call_id and item.output, item
             return ChatCompletionToolMessageParam(
@@ -118,8 +110,52 @@ def conversation_item_to_chat_message(  # noqa: PLR0911
 
 
 def items_to_chat_messages(items: list[ConversationItem]) -> list[ChatCompletionMessageParam]:
-    return [
-        chat_message
-        for chat_message in (conversation_item_to_chat_message(item) for item in items)
-        if chat_message is not None
-    ]
+    """Convert conversation items to chat messages.
+
+    NOTE: Multiple consecutive function_call items must be grouped into a single
+    assistant message with multiple tool_calls, as per OpenAI's API requirements.
+    """
+    messages: list[ChatCompletionMessageParam] = []
+    pending_tool_calls: list[ChatCompletionMessageToolCallParam] = []
+
+    for item in items:
+        # If this is a function_call, accumulate it
+        if item.type == "function_call":
+            assert item.call_id and item.name and item.arguments and item.status == "completed", item
+            pending_tool_calls.append(
+                ChatCompletionMessageToolCallParam(
+                    id=item.call_id,
+                    type="function",
+                    function=Function(
+                        name=item.name,
+                        arguments=item.arguments,
+                    ),
+                )
+            )
+            continue
+
+        # If we hit a non-function_call item, flush any pending tool calls first
+        if pending_tool_calls:
+            messages.append(
+                ChatCompletionAssistantMessageParam(
+                    role="assistant",
+                    tool_calls=pending_tool_calls.copy(),
+                )
+            )
+            pending_tool_calls.clear()
+
+        # Convert the current item
+        chat_message = conversation_item_to_chat_message(item)
+        if chat_message is not None:
+            messages.append(chat_message)
+
+    # Flush any remaining pending tool calls
+    if pending_tool_calls:
+        messages.append(
+            ChatCompletionAssistantMessageParam(
+                role="assistant",
+                tool_calls=pending_tool_calls.copy(),
+            )
+        )
+
+    return messages
