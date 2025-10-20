@@ -1,5 +1,6 @@
 import logging
 import logging.config
+import warnings
 
 
 def setup_logger(log_level: str) -> None:
@@ -53,7 +54,14 @@ def setup_logger(log_level: str) -> None:
                 "level": "INFO",
                 "handlers": ["stdout"],
             },
+            "huggingface_hub.repocard_data": {
+                "level": "ERROR",
+                "handlers": ["stdout"],
+            },
         },
     }
 
     logging.config.dictConfig(logging_config)
+
+    # Suppress HuggingFace FutureWarnings
+    warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub")
